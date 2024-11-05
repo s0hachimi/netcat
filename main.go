@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	Port := ":8989" // 65536
+	Port := ":8989" // 65535
 
 	if len(os.Args) > 2 {
 		fmt.Println("[USAGE]: ./TCPChat $port")
@@ -31,7 +31,7 @@ func main() {
 	}
 
 	fmt.Println("Listening on the port " + Port)
-	fmt.Print(function.Birti9)
+	// fmt.Print(function.Birti9)
 
 	for {
 		conn, err := ln.Accept()

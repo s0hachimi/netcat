@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 )
 
@@ -15,29 +14,34 @@ func HandleChat(conn net.Conn) {
 	conn.Write([]byte(Birti9))
 
 	var name string
-	// var chat string
-	var c int
+	// var m string
+	var f bool
 
 	T := time.Now()
 
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := bufio.NewScanner(conn)
+
+	
 
 	for scanner.Scan() {
-		if c == 0 {
+		if !f {
 			name = scanner.Text()
 		}
+		f = true
 
-		// chat = scanner.Text()
+		Message := fmt.Sprintf("[%v][%v]:", T.Format(time.DateTime), name)
 
-		fmt.Printf("[%v][%v]:", T.Format(time.DateTime), name)
-		c++
-
-		status, err := bufio.NewReader(conn).ReadString('\n')
+		_, err := conn.Write([]byte(Message))
 		if err != nil {
-			log.Fatal(err)
+			log.Println("Error reading from input:", err)
 		}
 
-		fmt.Println(status)
+		// m = scanner.Text()
+
+		// status, err := bufio.NewReader(conn).ReadString('\n')
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 
 	}
 }

@@ -31,13 +31,23 @@ func main() {
 	}
 
 	fmt.Println("Listening on the port " + Port)
-	// fmt.Print(function.Birti9)
+
+	count := 0
 
 	for {
+
 		conn, err := ln.Accept()
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
+		count++
+
+		if count == 11 {
+			conn.Write([]byte("you have no accept !!!"))
+			return
+		}
+
+		
 		go function.HandleChat(conn)
 
 	}

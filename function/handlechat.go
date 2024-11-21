@@ -20,41 +20,41 @@ var (
 func HandleChat(client net.Conn) {
 	defer removeClient(client)
 
-	client.Write([]byte(Birti9))
+	client.Write(Birti9)
 
 	scanner := bufio.NewScanner(client)
 
-	f = false
+	f = true
 	var name string
 
 	for {
-		for !f {
+		for f {
+
 		start:
 			_, err := client.Write([]byte("[ENTER YOUR NAME]:"))
 			if err != nil {
 				fmt.Println("Error reading from input:", err)
 				return
 			}
+
 			scanner.Scan()
 			name = scanner.Text()
 
-			if name == "" {
+			if name == "" || len(name) < 3 {
 				goto start
 			}
 
 			if !isNameTaken(name) {
-
 				mu.Lock()
 				clients[client] = name
 				mu.Unlock()
-
 			} else if name != "" {
 				client.Write([]byte("This name is already taken! Please enter a different name.\n"))
 				continue
 			}
 
 			if name != "" {
-				f = true
+				f = false
 			}
 
 		}
@@ -75,7 +75,7 @@ func HandleChat(client net.Conn) {
 			return
 		}
 
-		buf := make([]byte, 2000)
+		buf := make([]byte, 2048)
 
 		_, err = client.Read(buf)
 		if err != nil {
@@ -125,6 +125,23 @@ func Join(name string, sender net.Conn) {
 		}
 	}
 }
+
+func Left(name string, sender net.Conn) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	clientFormat := ""
+
+	for cl, myName := range clients {
+		clientFormat = fmt.Sprintf("[%v][%v]:", T.Format(time.DateTime), myName)
+		if cl != sender {
+			cl.Write([]byte("\n" + name + " has joined our chat... \n"))
+			cl.Write([]byte(clientFormat))
+		}
+	}
+}
+
+// Lee has left our chat...
 
 func isNameTaken(name string) bool {
 	mu.Lock()

@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	Port := ":8989" // 65535
+	Port := ":8989" //  65535
 
 	if len(os.Args) > 2 {
 		fmt.Println("[USAGE]: ./TCPChat $port")
@@ -47,8 +47,10 @@ func main() {
 			return
 		}
 
-		
 		go function.HandleChat(conn)
-
+		
 	}
+
+	
+	
 }

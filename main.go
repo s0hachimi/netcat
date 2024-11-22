@@ -27,12 +27,10 @@ func main() {
 
 	ln, err := net.Listen("tcp", Port)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("This Port not allowed " ,err)
 	}
 
 	fmt.Println("Listening on the port " + Port)
-
-	count := 0
 
 	for {
 
@@ -40,17 +38,8 @@ func main() {
 		if err != nil {
 			log.Println(err)
 		}
-		count++
-
-		if count == 11 {
-			conn.Write([]byte("you have no accept !!!"))
-			return
-		}
 
 		go function.HandleChat(conn)
-		
-	}
 
-	
-	
+	}
 }

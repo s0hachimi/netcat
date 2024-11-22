@@ -12,7 +12,7 @@ import (
 var (
 	T             = time.Now()
 	f             bool
-	clients       = make(map[net.Conn]string)
+	Clients       = make(map[net.Conn]string)
 	clientsJoined = make(map[net.Conn]bool)
 	mu            sync.Mutex
 	History       string
@@ -20,6 +20,11 @@ var (
 
 func HandleChat(client net.Conn) {
 	defer removeClient(client)
+
+	if len(Clients) == 10 {
+		fmt.Fprintln(client, "The chat is already full, you are not allowed to enter it.")
+		return
+	}
 
 	client.Write(Birti9)
 
@@ -31,6 +36,7 @@ func HandleChat(client net.Conn) {
 start:
 
 	for {
+
 		for f {
 
 			_, err := client.Write([]byte("[ENTER YOUR NAME]:"))
@@ -48,17 +54,16 @@ start:
 					fmt.Fprintln(client, "Invalid Name")
 					goto start
 				}
-
 			}
 
-			if name == "" || len(name) < 3 || len(name) > 25 {
+			if name == "" || len(name) > 50 {
 				fmt.Fprintln(client, "Invalid Name")
 				goto start
 			}
 
 			if !isNameTaken(name) {
 				mu.Lock()
-				clients[client] = name
+				Clients[client] = name
 				mu.Unlock()
 			} else if name != "" {
 				client.Write([]byte("This name is already taken! Please enter a different name.\n"))
@@ -93,11 +98,15 @@ start:
 		n, err := client.Read(buf)
 		if err != nil {
 			if err.Error() == "EOF" {
-				log.Println("Client closed connection gracefully.")
+				log.Println("Client closed connection gracefully.", err)
 				removeClient(client)
 				JoinOrLeft(name, "left", client)
 				return
 			}
+		}
+
+		if string(buf[:n]) == "\n" {
+			continue
 		}
 
 		if string(buf[:n]) == "--name\n" {
@@ -105,74 +114,15 @@ start:
 			f = true
 			goto start
 		}
-		fmt.Print(buf[:n], []byte("--name\n"))
+
+		// fmt.Print(buf[:n], []byte("--name\n"))
 
 		Message += string(buf[:n])
 		History += Message
 
 		SendMessage(string(buf[:n]), name, client)
 
-		fmt.Println(clients)
+		// fmt.Println(clients)
 
 	}
-}
-
-func SendMessage(message, nameClient string, sender net.Conn) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	clientFormat := ""
-
-	for client, name := range clients {
-		clientFormat = fmt.Sprintf("[%v][%v]:", T.Format(time.DateTime), name)
-		if client != sender {
-			client.Write([]byte("\n"))
-			Message2clents := fmt.Sprintf("[%v][%v]:%v", T.Format(time.DateTime), nameClient, (message))
-			// History += Message2clents + "\n"
-			_, err := client.Write([]byte(Message2clents))
-			if err != nil {
-				fmt.Println(err)
-				delete(clients, client)
-				client.Close()
-				return
-			}
-			client.Write([]byte(clientFormat))
-		}
-	}
-}
-
-func JoinOrLeft(name, msg string, sender net.Conn) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	clientFormat := ""
-
-	for cl, myName := range clients {
-		clientFormat = fmt.Sprintf("[%v][%v]:", T.Format(time.DateTime), myName)
-		if cl != sender {
-			History += name + " has " + msg + " our chat... \n"
-			cl.Write([]byte("\n" + name + " has " + msg + " our chat... \n"))
-			cl.Write([]byte(clientFormat))
-		}
-	}
-}
-
-// Lee has left our chat...
-
-func isNameTaken(name string) bool {
-	mu.Lock()
-	defer mu.Unlock()
-
-	for _, eName := range clients {
-		if eName == name {
-			return true
-		}
-	}
-	return false
-}
-
-func removeClient(conn net.Conn) {
-	mu.Lock()
-	defer mu.Unlock()
-	delete(clients, conn)
 }

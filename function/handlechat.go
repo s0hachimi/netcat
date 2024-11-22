@@ -15,6 +15,7 @@ var (
 	clients       = make(map[net.Conn]string)
 	clientsJoined = make(map[net.Conn]bool)
 	mu            sync.Mutex
+	History       string
 )
 
 func HandleChat(client net.Conn) {
@@ -27,10 +28,11 @@ func HandleChat(client net.Conn) {
 	f = true
 	var name string
 
+start:
+
 	for {
 		for f {
 
-		start:
 			_, err := client.Write([]byte("[ENTER YOUR NAME]:"))
 			if err != nil {
 				fmt.Println("Error reading from input:", err)
@@ -40,7 +42,17 @@ func HandleChat(client net.Conn) {
 			scanner.Scan()
 			name = scanner.Text()
 
-			if name == "" || len(name) < 3 {
+			for _, r := range name {
+				if r < 32 || r > 127 {
+					fmt.Println(r)
+					fmt.Fprintln(client, "Invalid Name")
+					goto start
+				}
+
+			}
+
+			if name == "" || len(name) < 3 || len(name) > 25 {
+				fmt.Fprintln(client, "Invalid Name")
 				goto start
 			}
 
@@ -54,13 +66,14 @@ func HandleChat(client net.Conn) {
 			}
 
 			if name != "" {
+				fmt.Fprint(client, History)
 				f = false
 			}
 
 		}
 
 		if !clientsJoined[client] {
-			Join(name, client)
+			JoinOrLeft(name, "joined", client)
 		}
 
 		mu.Lock()
@@ -71,20 +84,35 @@ func HandleChat(client net.Conn) {
 
 		_, err := client.Write([]byte(Message))
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("ww", err)
 			return
 		}
 
 		buf := make([]byte, 2048)
 
-		_, err = client.Read(buf)
+		n, err := client.Read(buf)
 		if err != nil {
 			if err.Error() == "EOF" {
 				log.Println("Client closed connection gracefully.")
+				removeClient(client)
+				JoinOrLeft(name, "left", client)
+				return
 			}
 		}
 
-		SendMessage(string(buf), name, client)
+		if string(buf[:n]) == "--name\n" {
+			fmt.Fprintln(client, "You can change your name")
+			f = true
+			goto start
+		}
+		fmt.Print(buf[:n], []byte("--name\n"))
+
+		Message += string(buf[:n])
+		History += Message
+
+		SendMessage(string(buf[:n]), name, client)
+
+		fmt.Println(clients)
 
 	}
 }
@@ -100,18 +128,20 @@ func SendMessage(message, nameClient string, sender net.Conn) {
 		if client != sender {
 			client.Write([]byte("\n"))
 			Message2clents := fmt.Sprintf("[%v][%v]:%v", T.Format(time.DateTime), nameClient, (message))
+			// History += Message2clents + "\n"
 			_, err := client.Write([]byte(Message2clents))
 			if err != nil {
 				fmt.Println(err)
 				delete(clients, client)
 				client.Close()
+				return
 			}
 			client.Write([]byte(clientFormat))
 		}
 	}
 }
 
-func Join(name string, sender net.Conn) {
+func JoinOrLeft(name, msg string, sender net.Conn) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -120,22 +150,8 @@ func Join(name string, sender net.Conn) {
 	for cl, myName := range clients {
 		clientFormat = fmt.Sprintf("[%v][%v]:", T.Format(time.DateTime), myName)
 		if cl != sender {
-			cl.Write([]byte("\n" + name + " has joined our chat... \n"))
-			cl.Write([]byte(clientFormat))
-		}
-	}
-}
-
-func Left(name string, sender net.Conn) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	clientFormat := ""
-
-	for cl, myName := range clients {
-		clientFormat = fmt.Sprintf("[%v][%v]:", T.Format(time.DateTime), myName)
-		if cl != sender {
-			cl.Write([]byte("\n" + name + " has joined our chat... \n"))
+			History += name + " has " + msg + " our chat... \n"
+			cl.Write([]byte("\n" + name + " has " + msg + " our chat... \n"))
 			cl.Write([]byte(clientFormat))
 		}
 	}
